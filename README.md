@@ -27,7 +27,7 @@ ONNXRuntime C++、MNN和TNN版本的推理实现均已测试通过，欢迎白�
 ## 3. 模型文件
 
 ### 3.1 ONNX模型文件
-可以从我提供的链接下载 ([Baidu Drive](https://pan.baidu.com/s/1elUGcx7CZkkjEoYhTMwTRQ) code: 8gin) , 也可以从本直接仓库下载。
+可以从我提供的链接下载 ([Baidu Drive](https://pan.baidu.com/s/1elUGcx7CZkkjEoYhTMwTRQ) code: 8gin)。
 
 
 |                 Class                 |      Pretrained ONNX Files      |              Rename or Converted From (Repo)              | Size  |
@@ -38,7 +38,7 @@ ONNXRuntime C++、MNN和TNN版本的推理实现均已测试通过，欢迎白�
 
 
 ### 3.2 MNN模型文件
-MNN模型文件下载地址，([Baidu Drive](https://pan.baidu.com/s/1KyO-bCYUv6qPq2M8BH_Okg) code: 9v63), 也可以从本直接仓库下载。
+MNN模型文件下载地址，([Baidu Drive](https://pan.baidu.com/s/1KyO-bCYUv6qPq2M8BH_Okg) code: 9v63)。
 
 |                 Class                 |      Pretrained MNN Files      |              Rename or Converted From (Repo)              | Size  |
 | :-----------------------------------: | :-----------------------------: | :-------------------------------------------------------: | :---: |
@@ -48,13 +48,21 @@ MNN模型文件下载地址，([Baidu Drive](https://pan.baidu.com/s/1KyO-bCYUv6
 
 
 ### 3.3 TNN模型文件
-TNN模型文件下载地址，([Baidu Drive](https://pan.baidu.com/s/1lvM2YKyUbEc5HKVtqITpcw) code: 6o6k), 也可以从本直接仓库下载。
+TNN模型文件下载地址，([Baidu Drive](https://pan.baidu.com/s/1lvM2YKyUbEc5HKVtqITpcw) code: 6o6k)。
 
 |                 Class                 |      Pretrained TNN Files      |              Rename or Converted From (Repo)              | Size  |
 | :-----------------------------------: | :-----------------------------: | :-------------------------------------------------------: | :---: |
 |     *lite::tnn::cv::detection::YOLOP*      |          yolop-320-320.opt.tnnproto&tnnmodel           |  [YOLOP](https://github.com/hustvl/YOLOP)   | 30Mb |
 |     *lite::tnn::cv::detection::YOLOP*      |          yolop-640-640.opt.tnnproto&tnnmodel           |  [YOLOP](https://github.com/hustvl/YOLOP)   | 30Mb |
 |     *lite::tnn::cv::detection::YOLOP*      |          yolop-1280-1280.opt.tnnproto&tnnmodel           |  [YOLOP](https://github.com/hustvl/YOLOP)   | 30Mb  |
+
+
+### 3.4 NCNN模型文件
+TNN模型文件下载地址，([Baidu Drive](https://pan.baidu.com/s/1hlnqyNsFbMseGFWscgVhgQ) code: sc7f)。
+
+|                 Class                 |      Pretrained NCNN Files      |              Rename or Converted From (Repo)              | Size  |
+| :-----------------------------------: | :-----------------------------: | :-------------------------------------------------------: | :---: |
+|     *lite::ncnn::cv::detection::YOLOP*      |          yolop-640-640.opt.param&bin           |  [YOLOP](https://github.com/hustvl/YOLOP)   | 30Mb |
 
 
 ## 4. 接口文档
@@ -65,6 +73,7 @@ TNN模型文件下载地址，([Baidu Drive](https://pan.baidu.com/s/1lvM2YKyUbE
 class LITE_EXPORTS lite::cv::detection::YOLOP;
 class LITE_EXPORTS lite::mnn::cv::detection::YOLOP;
 class LITE_EXPORTS lite::tnn::cv::detection::YOLOP;
+class LITE_EXPORTS lite::ncnn::cv::detection::YOLOP;
 ```  
 
 该类型目前包含1公共接口`detect`用于进行目标检测。
@@ -291,6 +300,74 @@ static void test_tnn()
 }
 ```  
 
+### 5.4 NCNN版本
+```c++
+#include "lite/lite.h"
+
+static void test_ncnn()
+{
+#ifdef ENABLE_NCNN
+    std::string param_path = "../hub/ncnn/cv/yolop-640-640.opt.param";
+    std::string bin_path = "../hub/ncnn/cv/yolop-640-640.opt.bin";
+    std::string test_img_path = "../resources/1.jpg";
+    std::string save_det_path = "../logs/1_det_ncnn.jpg";
+    std::string save_da_path = "../logs/1_da_ncnn.jpg";
+    std::string save_ll_path = "../logs/1_ll_ncnn.jpg";
+    std::string save_merge_path = "../logs/1_merge_ncnn.jpg";
+    
+    auto *yolop = new lite::ncnn::cv::detection::YOLOP(param_path, bin_path, 16); // 16 threads
+    
+    lite::types::SegmentContent da_seg_content;
+    lite::types::SegmentContent ll_seg_content;
+    std::vector<lite::types::Boxf> detected_boxes;
+    cv::Mat img_bgr = cv::imread(test_img_path);
+    yolop->detect(img_bgr, detected_boxes, da_seg_content, ll_seg_content);
+    
+    if (!detected_boxes.empty() && da_seg_content.flag && ll_seg_content.flag)
+    {
+        // boxes.
+        cv::Mat img_det = img_bgr.clone();
+        lite::utils::draw_boxes_inplace(img_det, detected_boxes);
+        cv::imwrite(save_det_path, img_det);
+        std::cout << "Saved " << save_det_path << " done!" << "\n";
+        // da && ll seg
+        cv::imwrite(save_da_path, da_seg_content.class_mat);
+        cv::imwrite(save_ll_path, ll_seg_content.class_mat);
+        std::cout << "Saved " << save_da_path << " done!" << "\n";
+        std::cout << "Saved " << save_ll_path << " done!" << "\n";
+        // merge
+        cv::Mat img_merge = img_bgr.clone();
+        cv::Mat color_seg = da_seg_content.color_mat + ll_seg_content.color_mat;
+        
+        cv::addWeighted(img_merge, 0.5, color_seg, 0.5, 0., img_merge);
+        lite::utils::draw_boxes_inplace(img_merge, detected_boxes);
+        cv::imwrite(save_merge_path, img_merge);
+        std::cout << "Saved " << save_merge_path << " done!" << "\n";
+        
+        // label
+        if (!da_seg_content.names_map.empty() && !ll_seg_content.names_map.empty())
+        {
+        
+            for (auto it = da_seg_content.names_map.begin(); it != da_seg_content.names_map.end(); ++it)
+            {
+                std::cout << "NCNN Version Detected Label: "
+                << it->first << " Name: " << it->second << std::endl;
+            }
+        
+            for (auto it = ll_seg_content.names_map.begin(); it != ll_seg_content.names_map.end(); ++it)
+            {
+                std::cout << "NCNN Version Detected Label: "
+                << it->first << " Name: " << it->second << std::endl;
+            }
+        
+        }
+    }
+    
+    delete yolop;
+#endif
+}
+```  
+
 * 输出结果为:  
 
 <div align='center'>
@@ -424,6 +501,23 @@ Saved ../logs/1_ll_mnn.jpg done!
 Saved ../logs/1_merge_mnn.jpg done!
 MNN Version Detected Label: 255 Name: drivable area
 MNN Version Detected Label: 255 Name: lane line
+LITENCNN_DEBUG LogId: ../hub/ncnn/cv/yolop-640-640.opt.param
+=============== Input-Dims ==============
+Input: images: shape: c=0 h=0 w=0
+=============== Output-Dims ==============
+Output: det_stride_8: shape: c=0 h=0 w=0
+Output: det_stride_16: shape: c=0 h=0 w=0
+Output: det_stride_32: shape: c=0 h=0 w=0
+Output: drive_area_seg: shape: c=0 h=0 w=0
+Output: lane_line_seg: shape: c=0 h=0 w=0
+========================================
+generate_bboxes num: 62
+Saved ../logs/1_det_ncnn.jpg done!
+Saved ../logs/1_da_ncnn.jpg done!
+Saved ../logs/1_ll_ncnn.jpg done!
+Saved ../logs/1_merge_ncnn.jpg done!
+NCNN Version Detected Label: 255 Name: drivable area
+NCNN Version Detected Label: 255 Name: lane line
 LITETNN_DEBUG LogId: ../hub/tnn/cv/yolop-640-640.opt.tnnproto
 =============== Input-Dims ==============
 images: [1 3 640 640 ]
